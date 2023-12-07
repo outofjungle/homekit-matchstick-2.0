@@ -1,0 +1,12 @@
+# osx
+.DS_Store
+
+# vscode
+.vscode
+
+# Platform IO
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+.pio
