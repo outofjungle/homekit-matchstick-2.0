@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 #include "SimpleButton.h"
+#include "lights.h"
 
 #define M5_BUTTON_PIN 39
 #define S1_PIN 0
@@ -18,15 +19,8 @@ CRGB ch3[LED_LENGTH];
 CRGB ch4[LED_LENGTH];
 
 SimpleButton *s1 = new SimpleButton(S1_PIN);
-
-void set_low_test_pins()
-{
-    digitalWrite(LED_PIN, LOW);
-    digitalWrite(CH1_PIN, LOW);
-    digitalWrite(CH2_PIN, LOW);
-    digitalWrite(CH3_PIN, LOW);
-    digitalWrite(CH4_PIN, LOW);
-}
+Lights *lights1 = new Lights();
+Task *tasks[] = {lights1};
 
 void update_led(bool update)
 {
@@ -39,24 +33,6 @@ void update_led(bool update)
     }
 }
 
-void update_brightness(bool update)
-{
-    static int brightness[] = {0x20, 0x40, 0x60, 0x80, 0xA0, 0xC0, 0xE0, 0xFF};
-    static int brightness_index = 0;
-
-    if (update)
-    {
-        brightness_index = (brightness_index + 1) % 8;
-
-        FastLED.setBrightness(brightness[brightness_index]);
-        fill_solid(ch1, LED_LENGTH, CRGB::White);
-        fill_solid(ch2, LED_LENGTH, CRGB::White);
-        fill_solid(ch3, LED_LENGTH, CRGB::White);
-        fill_solid(ch4, LED_LENGTH, CRGB::White);
-        FastLED.show();
-    }
-}
-
 void setup()
 {
     Serial.begin(115200);
@@ -65,20 +41,16 @@ void setup()
     pinMode(S1_PIN, INPUT_PULLUP);
 
     pinMode(LED_PIN, OUTPUT);
-    pinMode(CH1_PIN, OUTPUT);
-    pinMode(CH2_PIN, OUTPUT);
-    pinMode(CH3_PIN, OUTPUT);
-    pinMode(CH4_PIN, OUTPUT);
 
-    set_low_test_pins();
+    lights1->Init<WS2811, CH1_PIN, GRB>(ch1, LED_LENGTH);
 
-    FastLED.addLeds<WS2811, CH1_PIN, BGR>(ch1, LED_LENGTH);
-    FastLED.addLeds<WS2811, CH2_PIN, BGR>(ch2, LED_LENGTH);
-    FastLED.addLeds<WS2811, CH3_PIN, BGR>(ch3, LED_LENGTH);
-    FastLED.addLeds<WS2811, CH4_PIN, BGR>(ch4, LED_LENGTH);
+    int size = sizeof(tasks) / sizeof(tasks[0]);
+    for (int i = 0; i < size; i++)
+    {
+        tasks[i]->Setup();
+    }
 
     update_led(true);
-    update_brightness(true);
 }
 
 void loop()
@@ -86,5 +58,10 @@ void loop()
     bool pressed = s1->pressed();
 
     update_led(pressed);
-    update_brightness(pressed);
+
+    int size = sizeof(tasks) / sizeof(tasks[0]);
+    for (int i = 0; i < size; i++)
+    {
+        tasks[i]->Tick();
+    }
 }
