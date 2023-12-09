@@ -11,7 +11,7 @@
 #define CH3_PIN 19
 #define CH4_PIN 25
 
-#define LED_LENGTH 50
+#define LED_LENGTH 200
 
 CRGB ch1[LED_LENGTH];
 CRGB ch2[LED_LENGTH];
@@ -42,7 +42,7 @@ void setup()
 
     pinMode(LED_PIN, OUTPUT);
 
-    lights1->Init<WS2811, CH1_PIN, GRB>(ch1, LED_LENGTH);
+    lights1->Init<WS2811, CH1_PIN, GBR>(ch1, LED_LENGTH);
 
     int size = sizeof(tasks) / sizeof(tasks[0]);
     for (int i = 0; i < size; i++)

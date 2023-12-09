@@ -7,16 +7,13 @@ void Lights::Setup()
 
   FastLED.setBrightness(brightness);
 
-  currentPaletteList = gTestPalettes;
-  targetPalette = currentPalette = currentPaletteList[0];
+  TProgmemRGBGradientPalettePtr *currentPaletteList = palettes->Playlist();
 
-  AddPattern(std::bind(&Lights::Cylon, this));
-  AddPattern(std::bind(&Lights::Rainbow, this));
-  AddPattern(std::bind(&Lights::Gradient, this));
-  AddPattern(std::bind(&Lights::CoolPalette, this));
+  // AddPattern(std::bind(&Lights::Black, this));
   AddPattern(std::bind(&Lights::Blur, this));
   AddPattern(std::bind(&Lights::BlurWithPalette, this));
-  AddPattern(std::bind(&Lights::Black, this));
+  AddPattern(std::bind(&Lights::CoolPalette, this));
+  AddPattern(std::bind(&Lights::Cylon, this));
   AddPattern(std::bind(&Lights::RandomWaves, this));
 
   Serial.println("Lights initialized");
@@ -29,11 +26,12 @@ void Lights::AddPattern(std::function<void()> pattern)
 
 void Lights::Tick()
 {
-  uint8_t paletteCount = sizeof(currentPaletteList) / sizeof(TProgmemRGBGradientPalettePtr);
-  EVERY_N_SECONDS(7)
+  static unsigned long curtime;
+  static unsigned long prevtime = millis();
+
+  EVERY_N_SECONDS(20)
   {
-    targetPaletteNumber = addmod8(targetPaletteNumber, 1, paletteCount);
-    targetPalette = currentPaletteList[targetPaletteNumber];
+    uint8_t targetPaletteNumber = palettes->Next();
     Serial.print("Target Palette [");
     Serial.print(targetPaletteNumber);
     Serial.println("]");
@@ -42,7 +40,7 @@ void Lights::Tick()
   EVERY_N_MILLISECONDS(100)
   {
     uint8_t maxChanges = 24;
-    nblendPaletteTowardPalette(currentPalette, targetPalette, maxChanges);
+    nblendPaletteTowardPalette(*palettes->Current(), *palettes->Target(), maxChanges);
     AddGlitter(30);
   }
 
@@ -89,27 +87,17 @@ void Lights::Black()
   leds[pos] = CHSV(0, 0, 0);
 }
 
-void Lights::Rainbow()
-{
-  fill_rainbow(leds, numLeds - 1, hue, 7);
-}
-
-void Lights::Gradient()
-{
-  CHSV color1 = CHSV(hue, 200, 200);
-  CHSV color2 = CHSV(hue + 47, 200, 200);
-  fill_gradient_RGB(leds, numLeds - 1, color1, color2);
-}
-
 void Lights::Cylon()
 {
+  static uint8_t index = random8();
   fadeToBlackBy(leds, numLeds, 1);
   int pos = beatsin16(5, 0, numLeds - 1);
-  leds[pos] = CHSV(hue, 255, 255);
+  leds[pos] = ColorFromPalette(*palettes->Current(), index, 255);
 }
 
 void Lights::CoolPalette()
 {
+  TProgmemRGBGradientPalettePtr *currentPaletteList = palettes->Playlist();
   //  CRGBPalette16 myPal = christmas_candy_gp;
   //  CRGBPalette16 myPal = bhw1_28_gp;
   //  CRGBPalette16 myPal = GMT_hot_gp;
@@ -117,12 +105,12 @@ void Lights::CoolPalette()
 
   //  CRGBPalette16 myPal = bhw1_07_gp;
   //  CRGBPalette16 myPal = es_vintage_01_gp;
-  CRGBPalette16 myPal = dense_gp;
+  // CRGBPalette16 myPal = currentPaletteList[0];
   //  CRGBPalette16 myPal = autumnrose_gp;
   //  CRGBPalette16 myPal = curvature_gp;
   static uint8_t heatindex = 0;
 
-  myPal = currentPalette;
+  CRGBPalette16 myPal = *palettes->Current();
 
   EVERY_N_MILLISECONDS(10)
   {
@@ -131,10 +119,6 @@ void Lights::CoolPalette()
 
   fill_palette(leds, numLeds - 1, heatindex, 2, myPal, 255, LINEARBLEND);
 }
-
-// void Lights::RotatePalettes() {
-//
-// }
 
 // Gets weird with more than 144 LEDs
 void Lights::Blur()
@@ -181,10 +165,11 @@ void Lights::BlurWithPalette()
   uint16_t j = beatsin88(89, i, numLeds - 1);
   uint16_t k = beatsin88(61, i, j);
 
-  leds[i] = ColorFromPalette(currentPalette, hue, 255);
-  leds[(numLeds - 1) - i] = ColorFromPalette(currentPalette, hue * 11, 255);
-  leds[j] = ColorFromPalette(currentPalette, hue * 3, 255);
-  leds[k] = ColorFromPalette(currentPalette, hue * 5, 255);
+  uint8_t index = random8();
+  leds[i] = ColorFromPalette(*palettes->Current(), index, 255);
+  leds[(numLeds - 1) - i] = ColorFromPalette(*palettes->Current(), index * 11, 255);
+  leds[j] = ColorFromPalette(*palettes->Current(), index * 3, 255);
+  leds[k] = ColorFromPalette(*palettes->Current(), index * 5, 255);
 }
 
 void Lights::RandomWaves()
@@ -227,8 +212,9 @@ void Lights::RandomWaves()
   k = k > numLeds - 1 ? numLeds - 1 : k;
   l = l > numLeds - 1 ? numLeds - 1 : l;
 
-  leds[i] = ColorFromPalette(currentPalette, hue, 255);
-  leds[j] = ColorFromPalette(currentPalette, hue * 3, 255);
-  leds[k] = ColorFromPalette(currentPalette, hue * 5, 255);
-  leds[l] = ColorFromPalette(currentPalette, hue * 7, 255);
+  uint8_t index = random8();
+  leds[i] = ColorFromPalette(*palettes->Current(), index, 255);
+  leds[j] = ColorFromPalette(*palettes->Current(), index * 3, 255);
+  leds[k] = ColorFromPalette(*palettes->Current(), index * 5, 255);
+  leds[l] = ColorFromPalette(*palettes->Current(), index * 7, 255);
 }
